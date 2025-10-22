@@ -1,0 +1,31 @@
+{
+  "$schema": "./schema.json",
+  "id": "node-toolbox",
+  "name": "Node 工具箱",
+  "version": "1.0.0",
+  "author": "Naimo Tools",
+  "icon": "./ico.png",
+  "description": "一站式 Node.js 开发环境管理工具",
+  "category": "developer_essentials",
+  "enabled": true,
+  "main": "./index.html",
+  "preload": "./preload.js",
+  "feature": [
+    {
+      "path": "node-toolbox",
+      "name": "Node 工具箱",
+      "icon": "./ico.png",
+      "description": "Node.js 环境管理、npmrc 配置、全局包管理",
+      "type": "text",
+      "anonymousSearchFields": [
+        "node",
+        "nodejs",
+        "npm",
+        "npmrc",
+        "工具箱",
+        "环境管理",
+        "包管理"
+      ]
+    }
+  ]
+}
