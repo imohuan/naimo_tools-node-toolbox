@@ -2,7 +2,7 @@
   "$schema": "./schema.json",
   "id": "node-toolbox",
   "name": "Node 工具箱",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Naimo Tools",
   "icon": "./ico.png",
   "description": "一站式 Node.js 开发环境管理工具",

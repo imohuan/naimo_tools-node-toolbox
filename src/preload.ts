@@ -121,11 +121,161 @@ interface NodeToolboxAPI {
 
   // 文件系统操作
   selectFolder: () => Promise<string | null>;
+
+  // npm→pnpm 转换功能
+  checkNpmPnpmConvert: () => Promise<{
+    enabled: boolean;
+    profileExists: boolean;
+    pnpmInstalled: boolean;
+    pnpmVersion?: string;
+  }>;
+  enableNpmPnpmConvert: () => Promise<{
+    success: boolean;
+    message: string;
+  }>;
+  disableNpmPnpmConvert: () => Promise<{
+    success: boolean;
+    message: string;
+  }>;
 }
 
 // 获取 npmrc 路径
 function getNpmrcPath(): string {
   return path.join(os.homedir(), '.npmrc');
+}
+
+// PowerShell Profile 路径
+function getPowerShellProfilePath(): string {
+  return path.join(os.homedir(), 'Documents', 'WindowsPowerShell', 'Microsoft.PowerShell_profile.ps1');
+}
+
+// 标记注释
+const START_MARKER = '# ========== NPM-PNPM-AUTO-CONVERT-START ==========';
+const END_MARKER = '# ========== NPM-PNPM-AUTO-CONVERT-END ==========';
+const UTF8_BOM = '\uFEFF';
+
+// PowerShell 配置内容
+const POWERSHELL_CONFIG = `
+${START_MARKER}
+# npm → pnpm 自动转换配置
+# 生成时间: ${new Date().toLocaleString()}
+
+# npm 命令映射函数
+function npm {
+    param([Parameter(ValueFromRemainingArguments)]$args)
+    
+    if ($args.Length -eq 0) {
+        Write-Host "💡 使用 pnpm" -ForegroundColor Yellow
+        pnpm --help
+        return
+    }
+    
+    $cmd = $args[0]
+    $rest = $args[1..$args.Length]
+    
+    Write-Host "💡 npm → pnpm 自动转换" -ForegroundColor Yellow
+    
+    switch ($cmd) {
+        'install' {
+            if ($rest.Length -eq 0) {
+                Write-Host "   执行: pnpm install" -ForegroundColor Cyan
+                pnpm install
+            } else {
+                Write-Host "   执行: pnpm add $rest" -ForegroundColor Cyan
+                pnpm add @rest
+            }
+        }
+        'i' {
+            Write-Host "   执行: pnpm add $rest" -ForegroundColor Cyan
+            pnpm add @rest
+        }
+        'uninstall' {
+            Write-Host "   执行: pnpm remove $rest" -ForegroundColor Cyan
+            pnpm remove @rest
+        }
+        'un' {
+            Write-Host "   执行: pnpm remove $rest" -ForegroundColor Cyan
+            pnpm remove @rest
+        }
+        'rm' {
+            Write-Host "   执行: pnpm remove $rest" -ForegroundColor Cyan
+            pnpm remove @rest
+        }
+        'remove' {
+            Write-Host "   执行: pnpm remove $rest" -ForegroundColor Cyan
+            pnpm remove @rest
+        }
+        'update' {
+            Write-Host "   执行: pnpm update $rest" -ForegroundColor Cyan
+            pnpm update @rest
+        }
+        'up' {
+            Write-Host "   执行: pnpm update $rest" -ForegroundColor Cyan
+            pnpm update @rest
+        }
+        'run' {
+            Write-Host "   执行: pnpm run $rest" -ForegroundColor Cyan
+            pnpm run @rest
+        }
+        'test' {
+            Write-Host "   执行: pnpm test $rest" -ForegroundColor Cyan
+            pnpm test @rest
+        }
+        'start' {
+            Write-Host "   执行: pnpm start $rest" -ForegroundColor Cyan
+            pnpm start @rest
+        }
+        default {
+            Write-Host "   执行: pnpm $args" -ForegroundColor Cyan
+            pnpm @args
+        }
+    }
+}
+
+# npx 命令映射函数
+function npx {
+    Write-Host "💡 npx → pnpm dlx 自动转换" -ForegroundColor Yellow
+    Write-Host "   执行: pnpm dlx $args" -ForegroundColor Cyan
+    pnpm dlx @args
+}
+
+# 恢复使用真正的 npm（如果需要）
+function npm-real {
+    & "npm.cmd" @args
+}
+
+# 恢复使用真正的 npx（如果需要）
+function npx-real {
+    & "npx.cmd" @args
+}
+
+Write-Host "✅ npm → pnpm 自动转换已启用" -ForegroundColor Green
+Write-Host "   输入 npm 命令将自动使用 pnpm" -ForegroundColor Gray
+Write-Host "   如需使用真正的 npm, 请用 npm-real 命令" -ForegroundColor Gray
+${END_MARKER}
+`;
+
+// 检查是否已启用 npm→pnpm 转换
+async function isNpmPnpmEnabled(): Promise<boolean> {
+  try {
+    const profilePath = getPowerShellProfilePath();
+    const content = await fs.readFile(profilePath, 'utf-8');
+    return content.includes(START_MARKER);
+  } catch {
+    return false;
+  }
+}
+
+// 确保 PowerShell Profile 文件存在
+async function ensureProfileExists(): Promise<void> {
+  const profilePath = getPowerShellProfilePath();
+  try {
+    await fs.access(profilePath);
+  } catch {
+    const dir = path.dirname(profilePath);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(profilePath, '', 'utf-8');
+  }
 }
 
 // 发送日志的辅助函数
@@ -734,6 +884,166 @@ const nodeToolboxAPI: NodeToolboxAPI = {
     } catch (error: any) {
       console.error('选择文件夹失败:', error);
       return null;
+    }
+  },
+
+  // npm→pnpm 转换功能
+  async checkNpmPnpmConvert() {
+    try {
+      const profilePath = getPowerShellProfilePath();
+      let profileExists = false;
+      let enabled = false;
+
+      try {
+        await fs.access(profilePath);
+        profileExists = true;
+        enabled = await isNpmPnpmEnabled();
+      } catch {
+        profileExists = false;
+      }
+
+      // 检查 pnpm 是否安装
+      let pnpmInstalled = false;
+      let pnpmVersion: string | undefined;
+      try {
+        const { stdout } = await execAsync('pnpm --version');
+        pnpmInstalled = true;
+        pnpmVersion = stdout.trim();
+      } catch {
+        pnpmInstalled = false;
+      }
+
+      return {
+        enabled,
+        profileExists,
+        pnpmInstalled,
+        pnpmVersion,
+      };
+    } catch (error: any) {
+      console.error('检查 npm→pnpm 转换状态失败:', error);
+      return {
+        enabled: false,
+        profileExists: false,
+        pnpmInstalled: false,
+      };
+    }
+  },
+
+  async enableNpmPnpmConvert() {
+    try {
+      // 检查是否已启用
+      if (await isNpmPnpmEnabled()) {
+        return {
+          success: false,
+          message: 'npm → pnpm 转换已经启用',
+        };
+      }
+
+      // 检查 pnpm 是否安装
+      try {
+        await execAsync('pnpm --version');
+      } catch {
+        return {
+          success: false,
+          message: 'pnpm 未安装，请先安装 pnpm',
+        };
+      }
+
+      // 确保 Profile 文件存在
+      await ensureProfileExists();
+
+      const profilePath = getPowerShellProfilePath();
+
+      // 读取现有内容
+      let content = '';
+      try {
+        content = await fs.readFile(profilePath, 'utf-8');
+        // 移除 BOM（如果存在）
+        if (content.charCodeAt(0) === 0xFEFF) {
+          content = content.slice(1);
+        }
+      } catch {
+        content = '';
+      }
+
+      // 添加配置
+      content += '\n' + POWERSHELL_CONFIG + '\n';
+
+      // 写入文件，添加 UTF-8 BOM
+      await fs.writeFile(profilePath, UTF8_BOM + content, 'utf-8');
+
+      return {
+        success: true,
+        message: 'npm → pnpm 自动转换已启用，请重新打开 PowerShell 窗口或执行 . $PROFILE',
+      };
+    } catch (error: any) {
+      console.error('启用 npm→pnpm 转换失败:', error);
+      return {
+        success: false,
+        message: `启用失败: ${error.message}`,
+      };
+    }
+  },
+
+  async disableNpmPnpmConvert() {
+    try {
+      const profilePath = getPowerShellProfilePath();
+
+      // 检查 Profile 文件是否存在
+      try {
+        await fs.access(profilePath);
+      } catch {
+        return {
+          success: false,
+          message: 'PowerShell Profile 文件不存在',
+        };
+      }
+
+      // 检查是否已启用
+      if (!(await isNpmPnpmEnabled())) {
+        return {
+          success: false,
+          message: 'npm → pnpm 转换未启用',
+        };
+      }
+
+      // 读取现有内容
+      let content = await fs.readFile(profilePath, 'utf-8');
+
+      // 移除 BOM（如果存在）
+      if (content.charCodeAt(0) === 0xFEFF) {
+        content = content.slice(1);
+      }
+
+      // 查找并删除配置块
+      const startIndex = content.indexOf(START_MARKER);
+      const endIndex = content.indexOf(END_MARKER);
+
+      if (startIndex !== -1 && endIndex !== -1) {
+        // 删除配置块（包括前后的空行）
+        content = content.substring(0, startIndex) + content.substring(endIndex + END_MARKER.length);
+        // 清理多余的空行
+        content = content.replace(/\n{3,}/g, '\n\n').trim() + '\n';
+
+        // 写入文件，添加 UTF-8 BOM
+        await fs.writeFile(profilePath, UTF8_BOM + content, 'utf-8');
+
+        return {
+          success: true,
+          message: 'npm → pnpm 自动转换已禁用，请重新打开 PowerShell 窗口或执行 . $PROFILE',
+        };
+      } else {
+        return {
+          success: false,
+          message: '配置格式异常，请手动编辑 Profile 文件',
+        };
+      }
+    } catch (error: any) {
+      console.error('禁用 npm→pnpm 转换失败:', error);
+      return {
+        success: false,
+        message: `禁用失败: ${error.message}`,
+      };
     }
   },
 };

@@ -168,42 +168,139 @@
                     </span>
                   </div>
 
-                  <!-- 刷新按钮 -->
-                  <button
-                    @click="refreshNodeInfo"
-                    :disabled="isRefreshing"
-                    class="p-1.5 hover:bg-gray-100 rounded-lg transition-colors group disabled:cursor-not-allowed disabled:opacity-50"
-                    title="刷新版本信息"
-                  >
-                    <svg
-                      v-if="!isRefreshing"
-                      class="w-4 h-4 text-gray-500 group-hover:text-indigo-600 group-hover:rotate-180 transition-all duration-300"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                  <!-- 右侧按钮组 -->
+                  <div class="flex items-center gap-2">
+                    <!-- npm→pnpm 切换按钮 -->
+                    <div class="relative group font-mono">
+                      <button
+                        @click="toggleNpmPnpmConvert"
+                        :disabled="isToggling || !npmPnpmStatus.pnpmInstalled"
+                        class="relative inline-flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        :class="
+                          npmPnpmStatus.enabled
+                            ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:scale-105'
+                            : 'bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-lg shadow-gray-500/30 hover:shadow-gray-500/50 hover:scale-105'
+                        "
+                        :title="
+                          !npmPnpmStatus.pnpmInstalled
+                            ? 'pnpm 未安装'
+                            : npmPnpmStatus.enabled
+                            ? '点击禁用 npm→pnpm 转换'
+                            : '点击启用 npm→pnpm 转换'
+                        "
+                      >
+                        <!-- 加载动画 -->
+                        <template v-if="isToggling">
+                          <svg
+                            class="w-4 h-4 animate-spin"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              class="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              stroke-width="4"
+                            ></circle>
+                            <path
+                              class="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                        </template>
+
+                        <!-- 正常状态 -->
+                        <template v-else>
+                          <!-- npm 文字 -->
+                          <span class="text-xs font-bold uppercase">npm</span>
+
+                          <!-- 箭头 -->
+                          <svg
+                            class="w-3 h-3 transition-transform duration-300"
+                            :class="
+                              npmPnpmStatus.enabled
+                                ? 'scale-100'
+                                : 'scale-75 opacity-50'
+                            "
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="3"
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
+
+                          <!-- pnpm 文字 -->
+                          <span class="text-xs font-bold uppercase">pnpm</span>
+
+                          <!-- 状态指示器 -->
+                          <div
+                            class="w-2 h-2 rounded-full transition-all duration-300"
+                            :class="
+                              npmPnpmStatus.enabled
+                                ? 'bg-white shadow-lg shadow-white/50'
+                                : 'bg-gray-300'
+                            "
+                          ></div>
+                        </template>
+                      </button>
+
+                      <!-- Tooltip -->
+                      <div
+                        v-if="!npmPnpmStatus.pnpmInstalled"
+                        class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-20"
+                      >
+                        pnpm 未安装，请先安装
+                        <div
+                          class="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"
+                        ></div>
+                      </div>
+                    </div>
+
+                    <!-- 刷新按钮 -->
+                    <button
+                      @click="refreshNodeInfo"
+                      :disabled="isRefreshing"
+                      class="p-1.5 hover:bg-gray-100 rounded-lg transition-colors group disabled:cursor-not-allowed disabled:opacity-50"
+                      title="刷新版本信息"
                     >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                      />
-                    </svg>
-                    <svg
-                      v-else
-                      class="w-4 h-4 text-indigo-600 animate-spin"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                      />
-                    </svg>
-                  </button>
+                      <svg
+                        v-if="!isRefreshing"
+                        class="w-4 h-4 text-gray-500 group-hover:text-indigo-600 group-hover:rotate-180 transition-all duration-300"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
+                      </svg>
+                      <svg
+                        v-else
+                        class="w-4 h-4 text-indigo-600 animate-spin"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
 
                 <!-- 版本信息列表 -->
@@ -247,6 +344,14 @@ import DownloadButton from "../components/DownloadButton.vue";
 const nodeStore = useNodeStore();
 const terminalStore = useTerminalStore();
 const isRefreshing = ref(false);
+const isToggling = ref(false);
+
+const npmPnpmStatus = ref({
+  enabled: false,
+  profileExists: false,
+  pnpmInstalled: false,
+  pnpmVersion: undefined as string | undefined,
+});
 
 const latestLTS = computed(() => {
   return nodeStore.versions.find((v) => v.lts);
@@ -256,10 +361,59 @@ const latestCurrent = computed(() => {
   return nodeStore.versions[0];
 });
 
+async function checkNpmPnpmStatus() {
+  try {
+    const status = await window.nodeToolboxAPI.checkNpmPnpmConvert();
+    npmPnpmStatus.value = {
+      enabled: status.enabled,
+      profileExists: status.profileExists,
+      pnpmInstalled: status.pnpmInstalled,
+      pnpmVersion: status.pnpmVersion,
+    };
+  } catch (error) {
+    console.error("检查 npm→pnpm 转换状态失败:", error);
+  }
+}
+
+async function toggleNpmPnpmConvert() {
+  isToggling.value = true;
+
+  try {
+    if (npmPnpmStatus.value.enabled) {
+      terminalStore.info("正在禁用 npm→pnpm 自动转换...");
+      const result = await window.nodeToolboxAPI.disableNpmPnpmConvert();
+
+      if (result.success) {
+        terminalStore.success(result.message);
+        npmPnpmStatus.value.enabled = false;
+      } else {
+        terminalStore.error(result.message);
+      }
+    } else {
+      terminalStore.info("正在启用 npm→pnpm 自动转换...");
+      const result = await window.nodeToolboxAPI.enableNpmPnpmConvert();
+
+      if (result.success) {
+        terminalStore.success(result.message);
+        npmPnpmStatus.value.enabled = true;
+      } else {
+        terminalStore.error(result.message);
+      }
+    }
+
+    await checkNpmPnpmStatus();
+  } catch (error: any) {
+    terminalStore.error(`操作失败: ${error.message}`);
+  } finally {
+    isToggling.value = false;
+  }
+}
+
 async function refreshNodeInfo() {
   isRefreshing.value = true;
   terminalStore.info("正在检测 Node 环境...");
   await nodeStore.fetchNodeInfo();
+  await checkNpmPnpmStatus();
   terminalStore.success("环境检测完成");
   isRefreshing.value = false;
 }
@@ -285,6 +439,7 @@ function handleDownloadError(error: string) {
 onMounted(async () => {
   await refreshNodeInfo();
   await loadVersions();
+  await checkNpmPnpmStatus();
 });
 </script>
 
